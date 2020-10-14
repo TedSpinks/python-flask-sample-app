@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: flaskr
+  name: flaskr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flaskr
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: flaskr
+    spec:
+      containers:
+      - image: gtspinks/flaskr:master-6b4f3f5
+        name: flaskr
+        ports:
+        - containerPort: 5000
+        resources: {}
+status: {}

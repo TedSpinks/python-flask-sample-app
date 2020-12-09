@@ -61,13 +61,11 @@ steps:
   check_for_test_failures:
     title: Checking test results for failures
     stage: test
-    type: freestyle
-    arguments:
-      image: '${{flaskr_docker_image}}'  # Re-use to be frugal!
-      commands:
-        - 'echo Result of Linting was: ${{steps.linting.result}}'
-        - 'echo Result of Unit Testing was: ${{steps.unit_tests.result}}'
-        - 'exit 1'
+    image: alpine
+    commands:
+      - 'echo Result of Linting was: ${{steps.linting.result}}'
+      - 'echo Result of Unit Testing was: ${{steps.unit_tests.result}}'
+      - 'exit 1'
     when:
       steps:
         any:
@@ -86,6 +84,32 @@ steps:
     candidate: '${{flaskr_docker_image}}'
     image_name: '${{IMAGE_PREFIX}}flaskr'
     registry: '${{REGISTRY_NAME}}'
+
+  prep_for_enrich_image:
+    title: Gather image info
+    stage: upload
+    image: alpine
+    commands:
+      - echo "${{steps.store_docker_image.imageId}}"
+      - export IMAGE=${{steps.store_docker_image.imageId}}
+      - cf_export IMAGE
+      - echo $IMAGE
+
+  enrich_image:
+    title: Enrich image with annotations
+    stage: upload
+    type: image-enricher
+    arguments:
+      IMAGE: '${{IMAGE}}'
+      BRANCH: '${{CF_BRANCH}}'
+      REPO: '${{CF_REPO_OWNER}}/${{CF_REPO_NAME}}'
+      GIT_PROVIDER_NAME: '${{GIT_PROVIDER_NAME}}'  # defined as a trigger variable
+    hooks:
+      on_fail:
+        metadata:
+          set:
+            - '${{steps.store_docker_image.imageId}}':
+              - CF_QUALITY: false
 
   store_helm_chart:
     title: Pushing Helm chart to Codefresh repo
@@ -142,6 +166,17 @@ steps:
         - kubectl config set-context --current --namespace=$KUBE_NS_TEST_FEATURE
         - echo Testing Helm Release "flaskr-pr-$CF_PULL_REQUEST_NUMBER"
         - helm test flaskr-pr-$CF_PULL_REQUEST_NUMBER
+    hooks:
+      on_success:
+        metadata:
+          set:
+            - '${{steps.store_docker_image.imageId}}':
+              - CF_QUALITY: true
+      on_fail:
+        metadata:
+          set:
+            - '${{steps.store_docker_image.imageId}}':
+              - CF_QUALITY: false
 
   wait_for_manual_pr_testing:
     type: pending-approval

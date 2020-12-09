@@ -54,19 +54,17 @@ steps:
       allure_dir: allure-results
       bucket_name: '${{TEST_BUCKET_NAME}}'
       storage_integration: '${{TEST_STORAGE_NAME}}'
-      branch: '${{CF_BRANCH}}'
+      branch: '${{CF_BRANCH_TAG_NORMALIZED}}'
       clear_test_report: true
 
   check_for_test_failures:
     title: Checking test results for failures
     stage: test
-    type: freestyle
-    arguments:
-      image: '${{flaskr_docker_image}}'  # Re-use to be frugal!
-      commands:
-        - 'echo Result of Linting was: ${{steps.linting.result}}'
-        - 'echo Result of Unit Testing was: ${{steps.unit_tests.result}}'
-        - 'exit 1'
+    image: alpine
+    commands:
+      - 'echo Result of Linting was: ${{steps.linting.result}}'
+      - 'echo Result of Unit Testing was: ${{steps.unit_tests.result}}'
+      - 'exit 1'
     when:
       steps:
         any:
@@ -119,12 +117,10 @@ steps:
   test_helm_release:
     title: Running Helm Tests on the temp Release
     stage: deploy-int-test
-    type: freestyle
-    arguments:
-      image: 'codefresh/kube-helm:${{HELM_VER}}'
-      commands:
-        - echo Changing to context "$KUBE_CTX_TEST_INT" and ns "$KUBE_NS_TEST_INT"
-        - kubectl config use-context $KUBE_CTX_TEST_INT
-        - kubectl config set-context --current --namespace=$KUBE_NS_TEST_INT
-        - echo Testing Helm Release flaskr-test-int
-        - helm test flaskr-test-int
+    image: 'codefresh/kube-helm:${{HELM_VER}}'
+    commands:
+      - echo Changing to context "$KUBE_CTX_TEST_INT" and ns "$KUBE_NS_TEST_INT"
+      - kubectl config use-context $KUBE_CTX_TEST_INT
+      - kubectl config set-context --current --namespace=$KUBE_NS_TEST_INT
+      - echo Testing Helm Release flaskr-test-int
+      - helm test flaskr-test-int
